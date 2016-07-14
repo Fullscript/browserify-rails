@@ -21,13 +21,18 @@ module BrowserifyRails
     def evaluate(context, locals, &block)
       # If there's nothing to do, we just return the data we received
       return data unless should_browserify?
+      byebug
+      dependencies = Set.new(context[:metadata][:dependencies])
 
       # Signal dependencies to sprockets to ensure we track changes
       evaluate_dependencies(context.environment.paths).each do |path|
-        context.depend_on(path)
+        path = contexst.depend_on(path)
+        byebug
+        dependencies << "file-digest://#{path}}" if path
       end
 
-      run_browserify(context.logical_path)
+      new_data = run_browserify(context.logical_path)
+      { data: new_data, dependencies: dependencies }
     end
 
   private
@@ -86,8 +91,10 @@ module BrowserifyRails
     #
     # Be here as strict as possible, so that non-commonjs files are not
     # preprocessed.
+    #
+    # This method was updated for HW
     def commonjs_module?
-      data.to_s.include?("module.exports") || data.present? && data.to_s.include?("require") && dependencies.length > 0
+      data.to_s.include?("module.exports|export") || data.present? && data.to_s.match(/(require\(.*\)|import)/) && dependencies.length > 0
     end
 
     def asset_paths
